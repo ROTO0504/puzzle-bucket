@@ -160,6 +160,15 @@ body {
   backdrop-filter: blur(6px);
 }
 
+/* Controls help (right-center) */
+.help-panel { position: absolute; top: 50%; right: 24px; transform: translateY(-50%); pointer-events: none; }
+.help-panel__card { pointer-events: auto; background: rgba(15, 23, 42, 0.85); color: #f8fafc; padding: 14px 16px; border-radius: 14px; width: 300px; box-shadow: 0 14px 30px rgba(15,23,42,0.35); display: flex; flex-direction: column; gap: 8px; }
+.help-panel__title { margin: 0; font-size: 1rem; font-weight: 700; }
+.help-panel__list { display: flex; flex-direction: column; gap: 6px; }
+.help-panel__row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.help-panel__label { opacity: 0.95; }
+.help-panel__keys { opacity: 0.85; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
 .result-panel {
   position: absolute;
   top: 50%;
@@ -346,6 +355,9 @@ body {
   .result-panel__card {
     width: min(420px, 90vw);
   }
+
+  .help-panel { position: static; transform: none; width: 100%; display: flex; justify-content: center; margin: 8px 0; }
+  .help-panel__card { width: min(420px, 90vw); }
 }
 
 /* Queue (top-left) */

@@ -7,6 +7,7 @@ import StockPanel from "../components/StockPanel";
 import StartScreen from "../components/StartScreen";
 import EndScreen from "../components/EndScreen";
 import Leaderboard from "../components/Leaderboard";
+import ControlsHelp from "../components/ControlsHelp";
 import StuckButton from "../components/StuckButton";
 import { useGameStore } from "../store/useGameStore";
 
@@ -114,6 +115,7 @@ const App = () => {
           <StockPanel />
           <CurrentItemPanel />
           <HUD />
+          <ControlsHelp />
           <StuckButton />
         </>
       )}
