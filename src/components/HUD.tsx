@@ -85,7 +85,7 @@ const HUD = () => {
         </button>
       </div>
       <div className="hud__hint">
-        Drag to move • Click/Space to place • Scroll/Q,E yaw • Shift+Scroll/W,S pitch • R restart
+        Drag or Arrow keys to move • Click/Space to place • Q,E yaw • W,S pitch • A,D roll • F keep • R undo • Shift+R restart
       </div>
     </div>
   );

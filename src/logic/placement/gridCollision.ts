@@ -23,6 +23,7 @@ const intersects = (a: AABB, b: AABB) =>
   a.min.z < b.max.z &&
   a.max.z > b.min.z;
 
+// Constrain within basket bounds, including height.
 const withinBounds = (box: AABB, dimensions: GridDimensions) =>
   box.min.x >= 0 &&
   box.min.y >= 0 &&

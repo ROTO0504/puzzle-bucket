@@ -25,9 +25,10 @@ const multiply3x3 = (a: number[][], b: number[][]) => {
   return result;
 };
 
-const createRotationMatrix = ({ yaw, pitch }: Rotation) => {
+const createRotationMatrix = ({ yaw, pitch, roll }: Rotation) => {
   const yawRad = degToRad(yaw);
   const pitchRad = degToRad(pitch);
+  const rollRad = degToRad(roll);
 
   const yawMatrix = [
     [Math.cos(yawRad), 0, Math.sin(yawRad)],
@@ -41,7 +42,14 @@ const createRotationMatrix = ({ yaw, pitch }: Rotation) => {
     [0, Math.sin(pitchRad), Math.cos(pitchRad)],
   ];
 
-  return multiply3x3(yawMatrix, pitchMatrix);
+  const rollMatrix = [
+    [Math.cos(rollRad), -Math.sin(rollRad), 0],
+    [Math.sin(rollRad), Math.cos(rollRad), 0],
+    [0, 0, 1],
+  ];
+
+  // Compose Y (yaw) -> X (pitch) -> Z (roll). This yields rotations in local axes for 90° steps.
+  return multiply3x3(yawMatrix, multiply3x3(pitchMatrix, rollMatrix));
 };
 
 const sanitize = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
@@ -96,5 +104,5 @@ export const getVolume = (spec: ItemSpec) => spec.size.w * spec.size.h * spec.si
 export const toEulerRadians = (rotation: Rotation): [number, number, number] => [
   degToRad(rotation.pitch),
   degToRad(rotation.yaw),
-  0,
+  degToRad(rotation.roll),
 ];

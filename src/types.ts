@@ -10,6 +10,8 @@ export type ItemSpec = {
   shape: "box" | "cylinder" | "capsule" | "sphere";
   fragile?: boolean;
   texture?: string;
+  // Relative path under /public to an FBX model to render.
+  model?: string;
 };
 
 export type PlacedItem = {
@@ -17,6 +19,7 @@ export type PlacedItem = {
   rotation: {
     yaw: AxisRotation;
     pitch: AxisRotation;
+    roll: AxisRotation;
   };
   position: { x: number; y: number; z: number };
 };
@@ -29,4 +32,4 @@ export type ScoreBreakdown = {
   total: number;
 };
 
-export type GamePhase = "placing" | "scoring" | "results";
+export type GamePhase = "start" | "placing" | "scoring" | "results" | "leaderboard";

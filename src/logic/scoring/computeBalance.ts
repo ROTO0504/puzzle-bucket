@@ -4,16 +4,17 @@ export type BalanceInput = {
 };
 
 export const computeBalanceScore = ({ centerOfMass, basketSize }: BalanceInput) => {
-  const centerX = basketSize.width / 2;
-  const centerZ = basketSize.depth / 2;
-  const dx = centerOfMass.x - centerX;
-  const dz = centerOfMass.z - centerZ;
-  const distance = Math.sqrt(dx * dx + dz * dz);
-  const maxRadius = Math.sqrt(centerX * centerX + centerZ * centerZ);
+  const halfW = basketSize.width / 2;
+  const halfD = basketSize.depth / 2;
+  if (halfW <= 0 || halfD <= 0) return { score: 0, offset: 1, maxRadius: 1 };
 
-  if (maxRadius === 0) return { score: 30, offset: 0, maxRadius: 0 };
-
-  const offset = Math.min(distance / maxRadius, 1);
-  const score = 30 * (1 - offset) * (1 - offset);
-  return { score, offset, maxRadius };
+  const dx = Math.abs(centerOfMass.x - halfW);
+  const dz = Math.abs(centerOfMass.z - halfD);
+  // Chebyshev distance normalized to edges (0 center -> 0, edge -> 1)
+  const nx = Math.min(dx / halfW, 1);
+  const nz = Math.min(dz / halfD, 1);
+  const offset = Math.min(Math.max(Math.max(nx, nz), 0), 1);
+  // Harsher falloff to reduce overly high scores near edges
+  const score = 30 * Math.pow(1 - offset, 1.6);
+  return { score, offset, maxRadius: 1 };
 };

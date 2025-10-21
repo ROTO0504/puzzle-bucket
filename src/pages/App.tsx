@@ -1,28 +1,57 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import CanvasStage from "../components/CanvasStage";
 import HUD from "../components/HUD";
-import ResultPanel from "../components/ResultPanel";
+import CurrentItemPanel from "../components/CurrentItemPanel";
+import QueuePanel from "../components/QueuePanel";
+import StockPanel from "../components/StockPanel";
+import StartScreen from "../components/StartScreen";
+import EndScreen from "../components/EndScreen";
+import Leaderboard from "../components/Leaderboard";
+import StuckButton from "../components/StuckButton";
 import { useGameStore } from "../store/useGameStore";
 
 const App = () => {
   const phase = useGameStore((state) => state.phase);
-  const score = useGameStore((state) => state.score);
-  const pendingScore = useGameStore((state) => state.pendingScore);
-  const { restart, requestScoring, rotateGhostYaw, rotateGhostPitch, placeGhost, tick } = useGameStore(
+  const { restart, requestScoring, rotateGhostYaw, rotateGhostPitch, placeGhost, tick, moveGhostBy, undoLastPlacement, holdCurrent, rotateGhostRoll } = useGameStore(
     (state) => state.actions,
   );
-
-  const resultScore = useMemo(() => score ?? pendingScore, [score, pendingScore]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
+      // Disable shortcuts outside placing phase
+      if (useGameStore.getState().phase !== "placing") return;
       switch (event.key.toLowerCase()) {
         case "enter":
-          requestScoring();
+          // Only score when all items placed and still in placing phase
+          if (useGameStore.getState().phase === "placing" && useGameStore.getState().queue.length === 0) {
+            requestScoring();
+          }
+          break;
+        case "arrowleft":
+          event.preventDefault();
+          moveGhostBy(-1, 0);
+          break;
+        case "arrowright":
+          event.preventDefault();
+          moveGhostBy(1, 0);
+          break;
+        case "arrowup":
+          event.preventDefault();
+          moveGhostBy(0, -1);
+          break;
+        case "arrowdown":
+          event.preventDefault();
+          moveGhostBy(0, 1);
           break;
         case "r":
-          restart();
+          if (event.shiftKey) {
+            // Shift+R: Restart
+            restart();
+          } else {
+            // R: Undo last placement
+            undoLastPlacement();
+          }
           break;
         case "q":
           rotateGhostYaw(-1);
@@ -36,9 +65,19 @@ const App = () => {
         case "s":
           rotateGhostPitch(1);
           break;
+        case "a":
+          rotateGhostRoll(-1);
+          break;
+        case "d":
+          rotateGhostRoll(1);
+          break;
         case " ":
           event.preventDefault();
           placeGhost();
+          break;
+        case "f":
+          event.preventDefault();
+          holdCurrent();
           break;
         default:
           break;
@@ -46,7 +85,7 @@ const App = () => {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [placeGhost, requestScoring, restart, rotateGhostPitch, rotateGhostYaw]);
+  }, [holdCurrent, moveGhostBy, placeGhost, requestScoring, restart, rotateGhostPitch, rotateGhostYaw]);
 
   useEffect(() => {
     if (phase !== "placing") return;
@@ -69,10 +108,18 @@ const App = () => {
   return (
     <div className="app-shell">
       <CanvasStage />
-      <HUD />
-      {phase === "results" && resultScore && (
-        <ResultPanel score={resultScore} onRestart={restart} />
+      {phase === "placing" && (
+        <>
+          <QueuePanel />
+          <StockPanel />
+          <CurrentItemPanel />
+          <HUD />
+          <StuckButton />
+        </>
       )}
+      {phase === "start" && <StartScreen />}
+      {phase === "results" && <EndScreen />}
+      {phase === "leaderboard" && <Leaderboard />}
     </div>
   );
 };
