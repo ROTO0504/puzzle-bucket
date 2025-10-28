@@ -7,7 +7,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 4, d: 4, h: 1 },
     massKg: 0.1,
     shape: "box",
-    model: "assets/bread-melon-square.fbx",
+    model: "bread-melon-square",
   },
   {
     id: "meat-small",
@@ -15,7 +15,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 3, d: 4, h: 2 },
     massKg: 0.1,
     shape: "box",
-    model: "assets/meat-small.fbx",
+    model: "meat-small",
   },
   {
     id: "sashimi",
@@ -23,7 +23,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 2, d: 5, h: 3 },
     massKg: 0.1,
     shape: "box",
-    model: "assets/sashimi.fbx",
+    model: "sashimi",
   },
   {
     id: "potato",
@@ -31,7 +31,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 2, d: 2, h: 2 },
     massKg: 0.15,
     shape: "box",
-    model: "assets/potato.fbx",
+    model: "potato",
   },
   {
     id: "bread-baguette-rect",
@@ -39,7 +39,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 2, d: 2, h: 12 },
     massKg: 0.2,
     shape: "box",
-    model: "assets/bread-baguette-rect.fbx",
+    model: "bread-baguette-rect",
   },
   {
     id: "fresh-fish-med",
@@ -47,7 +47,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 6, d: 4, h: 2 },
     massKg: 0.2,
     shape: "box",
-    model: "assets/fresh-fish-med.fbx",
+    model: "fresh-fish-med",
   },
   {
     id: "carrot",
@@ -55,7 +55,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 1, d: 1, h: 4 },
     massKg: 0.2,
     shape: "box",
-    model: "assets/carrot.fbx",
+    model: "carrot",
   },
   {
     id: "moyashi",
@@ -63,7 +63,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 4, d: 4, h: 1 },
     massKg: 0.2,
     shape: "box",
-    model: "assets/moyashi.fbx",
+    model: "moyashi",
   },
   {
     id: "frozen-gyoza",
@@ -71,7 +71,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 4, d: 9, h: 2 },
     massKg: 0.25,
     shape: "box",
-    model: "assets/frozen-gyoza.fbx",
+    model: "frozen-gyoza",
   },
   {
     id: "bread-loaf-rect",
@@ -79,7 +79,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 4, d: 4, h: 4 },
     massKg: 0.3,
     shape: "box",
-    model: "assets/bread-loaf-rect.fbx",
+    model: "bread-loaf-rect",
   },
   {
     id: "meat-medium",
@@ -87,7 +87,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 6, d: 4, h: 2 },
     massKg: 0.3,
     shape: "box",
-    model: "assets/meat-medium.fbx",
+    model: "meat-medium",
   },
   {
     id: "pet-500ml",
@@ -95,7 +95,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 2, d: 2, h: 6 },
     massKg: 0.5,
     shape: "box",
-    model: "assets/pet-500ml.fbx",
+    model: "pet-500ml",
   },
   {
     id: "meat-large",
@@ -103,7 +103,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 6, d: 9, h: 2 },
     massKg: 0.5,
     shape: "box",
-    model: "assets/meat-large.fbx",
+    model: "meat-large",
   },
   {
     id: "egg-pack",
@@ -112,7 +112,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     massKg: 0.8,
     shape: "box",
     fragile: true,
-    model: "assets/egg-pack.fbx",
+    model: "egg-pack",
   },
   {
     id: "milk-carton-1l",
@@ -120,7 +120,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 3, d: 3, h: 9 },
     massKg: 1.0,
     shape: "box",
-    model: "assets/milk-carton-1l.fbx",
+    model: "milk-carton-1l",
   },
   {
     id: "pet-1l",
@@ -128,7 +128,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 3, d: 3, h: 10 },
     massKg: 1.0,
     shape: "box",
-    model: "assets/pet-1l.fbx",
+    model: "pet-1l",
   },
   {
     id: "daikon",
@@ -136,7 +136,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 3, d: 3, h: 12 },
     massKg: 1.0,
     shape: "box",
-    model: "assets/daikon.fbx",
+    model: "daikon",
   },
   {
     id: "pet-2l",
@@ -144,7 +144,7 @@ export const ITEM_SPECS: ItemSpec[] = [
     size: { w: 4, d: 4, h: 12 },
     massKg: 2.0,
     shape: "box",
-    model: "assets/pet-2l.fbx",
+    model: "pet-2l",
   },
 ];
 

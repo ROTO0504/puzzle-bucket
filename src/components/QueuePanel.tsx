@@ -2,9 +2,14 @@ import { useMemo, useEffect, useRef, Suspense, Component, type ReactNode } from 
 import { useGameStore } from "../store/useGameStore";
 import type { ItemSpec } from "../types";
 import { Canvas } from "@react-three/fiber";
-import { Center, useFBX } from "@react-three/drei";
+// no Center used here
+// Box3, Vector3 handled via bounds util
+import { ENABLE_FBX_MODELS, ENABLE_QUEUE_ROW_PREVIEWS, FBX_BOUNDS_MODE } from "../config";
+import { resolveModelUrl } from "../assets/models";
+import { useFbxWithResources } from "../utils/useFbxWithResources";
+import { getMainBounds, hideBackgroundMeshes, hasRenderableMeshes } from "../utils/fbxBounds";
 import { Box3, Vector3 } from "three";
-import { ENABLE_FBX_MODELS, ENABLE_QUEUE_ROW_PREVIEWS } from "../config";
+import { getModelOverride } from "../assets/modelOverrides";
 import { useInViewport } from "../hooks/useInViewport";
 
 const PrimitivePreviewMesh = ({ spec }: { spec: ItemSpec }) => {
@@ -49,33 +54,64 @@ const PrimitivePreviewMesh = ({ spec }: { spec: ItemSpec }) => {
 
 const FbxPreviewMesh = ({ spec }: { spec: ItemSpec }) => {
   const euler: [number, number, number] = [Math.PI / 8, Math.PI / 6, 0];
-  const url = useMemo(() => (spec.model ? (spec.model.startsWith("/") ? spec.model : `/${spec.model}`) : null), [
-    spec.model,
-  ]);
-  if (!url) return null;
-  const fbx = useFBX(url);
+  const url = useMemo(() => resolveModelUrl(spec.model)!, [spec.model]);
+  const fbx = useFbxWithResources(url, "/assets/3d/");
+  const model = useMemo(() => fbx.clone(true), [fbx]);
+  const override = useMemo(() => getModelOverride(spec.id) ?? getModelOverride(spec.model ?? undefined), [spec.id, spec.model]);
+  useEffect(() => {
+    if (FBX_BOUNDS_MODE === "heuristic") hideBackgroundMeshes(model, override);
+  }, [model]);
   useEffect(() => {
     fbx.traverse((o: any) => {
       if (o.isMesh) {
         o.castShadow = true;
         o.receiveShadow = true;
+        o.frustumCulled = false;
+        const applyMat = (m: any) => {
+          if (!m) return;
+          m.side = 2; // DoubleSide
+          if (typeof m.opacity === "number" && m.opacity < 1) m.transparent = true;
+          if (m.map) {
+            m.map.anisotropy = 8;
+            m.map.needsUpdate = true;
+          }
+          m.needsUpdate = true;
+        };
+        if (Array.isArray(o.material)) o.material.forEach(applyMat);
+        else applyMat(o.material);
       }
     });
   }, [fbx]);
-  const scale = useMemo(() => {
-    const box = new Box3().setFromObject(fbx);
+  const { size, center } = useMemo(() => {
+    if (FBX_BOUNDS_MODE === "heuristic") return getMainBounds(model, { ...override, respectVisibility: false });
+    const box = new Box3().setFromObject(model);
     const size = new Vector3();
+    const center = new Vector3();
     box.getSize(size);
+    box.getCenter(center);
+    return { size, center };
+  }, [model, override]);
+  const scale = useMemo(() => {
     const sx = size.x > 0 ? spec.size.w / size.x : 1;
     const sy = size.y > 0 ? spec.size.h / size.y : 1;
     const sz = size.z > 0 ? spec.size.d / size.z : 1;
     return [sx, sy, sz] as [number, number, number];
-  }, [fbx, spec.size.w, spec.size.h, spec.size.d]);
+  }, [size.x, size.y, size.z, spec.size.w, spec.size.h, spec.size.d]);
+  const localOffset: [number, number, number] = [
+    -center.x * scale[0],
+    -center.y * scale[1],
+    -center.z * scale[2],
+  ];
+  const hasMeshes = hasRenderableMeshes(model, true);
   return (
     <group rotation={euler}>
-      <Center>
-        <primitive object={fbx} scale={scale} />
-      </Center>
+      {hasMeshes ? (
+        <group position={localOffset} scale={scale}>
+          <primitive object={model} />
+        </group>
+      ) : (
+        <PrimitivePreviewMesh spec={spec} />
+      )}
     </group>
   );
 };
@@ -101,10 +137,17 @@ const RowPreview = ({ spec }: { spec: ItemSpec }) => {
   if (!ENABLE_QUEUE_ROW_PREVIEWS) {
     return <div ref={ref} className="queue__preview queue__preview--small"><div className="queue__preview--placeholder" /></div>;
   }
+  const diag = Math.sqrt(spec.size.w ** 2 + spec.size.h ** 2 + spec.size.d ** 2) || 1;
+  const dist = Math.max(diag * 1.8, 5);
   return (
     <div ref={ref} className="queue__preview queue__preview--small">
       {inView ? (
-        <Canvas camera={{ position: [4.5, 3.2, 4.5], fov: 40 }} dpr={[1, 1]} frameloop="demand" gl={{ antialias: false, powerPreference: "low-power" }}>
+        <Canvas
+          camera={{ position: [dist, dist * 0.7, dist], fov: 35 }}
+          dpr={[1, 1]}
+          frameloop="demand"
+          gl={{ antialias: false, powerPreference: "low-power", logarithmicDepthBuffer: true }}
+        >
           <ambientLight intensity={0.6} />
           <directionalLight position={[5, 8, 5]} intensity={0.9} />
           <LocalErrorBoundary fallback={<PrimitivePreviewMesh spec={spec} />}>
@@ -133,6 +176,8 @@ const QueuePanel = () => {
   const allQueue = queue ?? [];
   const nextId = allQueue[0];
   const nextSpec = byId.get(nextId);
+  const nextDiag = nextSpec ? Math.sqrt(nextSpec.size.w ** 2 + nextSpec.size.h ** 2 + nextSpec.size.d ** 2) || 1 : 1;
+  const nextDist = nextSpec ? Math.max(nextDiag * 2.4, 7) : 7;
   const allSpecs = allQueue.map((id) => byId.get(id)).filter(Boolean) as ItemSpec[];
   const listRef = useRef<HTMLDivElement>(null);
   // Scroll to bottom so「次」は常に下に表示される
@@ -177,7 +222,7 @@ const QueuePanel = () => {
               </div>
             </div>
             <div className="queue__preview">
-              <Canvas camera={{ position: [6, 4, 6], fov: 40 }} dpr={[1, 1]} frameloop="demand" gl={{ antialias: false, powerPreference: "low-power" }}>
+              <Canvas camera={{ position: [nextDist, nextDist * 0.7, nextDist], fov: 35 }} dpr={[1, 1]} frameloop="demand" gl={{ antialias: false, powerPreference: "low-power", logarithmicDepthBuffer: true }}>
                 <ambientLight intensity={0.6} />
                 <directionalLight position={[5, 8, 5]} intensity={0.9} />
                 <LocalErrorBoundary fallback={<PrimitivePreviewMesh spec={nextSpec} />}>

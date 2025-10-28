@@ -1,37 +1,78 @@
 import { Suspense, useMemo, useCallback, useEffect, Component, type ReactNode } from "react";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
-import { ContactShadows, Environment, OrbitControls, Center, useFBX } from "@react-three/drei";
+import { ContactShadows, Environment, OrbitControls } from "@react-three/drei";
 import BasketGrid from "./BasketGrid";
 import ItemGhost from "./ItemGhost";
 import { useGameStore, BASKET_DIMENSIONS } from "../store/useGameStore";
 import type { PlacedInstance } from "../store/useGameStore";
 import { getWorldCenter, toEulerRadians } from "../logic/placement/orientation";
+// Box3, Vector3 no longer used here after bounds util
+import { ENABLE_FBX_MODELS, FBX_BOUNDS_MODE } from "../config";
+import { resolveModelUrl } from "../assets/models";
+import { useFbxWithResources } from "../utils/useFbxWithResources";
+import { getMainBounds, hideBackgroundMeshes, hasRenderableMeshes } from "../utils/fbxBounds";
 import { Box3, Vector3 } from "three";
-import { ENABLE_FBX_MODELS } from "../config";
+import { getModelOverride } from "../assets/modelOverrides";
 
 const FbxItem = ({ instance }: { instance: PlacedInstance }) => {
   const { spec, position, rotation } = instance;
-  const url = useMemo(() => (spec.model?.startsWith("/") ? spec.model : `/${spec.model}`), [spec.model]);
-  const fbx = useFBX(url);
+  const url = useMemo(() => resolveModelUrl(spec.model)!, [spec.model]);
+  const fbx = useFbxWithResources(url, "/assets/3d/");
+  const model = useMemo(() => fbx.clone(true), [fbx]);
+  const override = useMemo(() => getModelOverride(spec.id) ?? getModelOverride(spec.model ?? undefined), [spec.id, spec.model]);
 
   useEffect(() => {
-    fbx.traverse((o: any) => {
+    if (FBX_BOUNDS_MODE === "heuristic") hideBackgroundMeshes(model, override);
+    model.traverse((o: any) => {
       if (o.isMesh) {
         o.castShadow = true;
         o.receiveShadow = true;
+        o.frustumCulled = false;
+        const applyMat = (m: any) => {
+          if (!m) return;
+          m.side = 2; // DoubleSide
+          if (typeof m.opacity === "number" && m.opacity < 1) m.transparent = true;
+          if (m.map) {
+            m.map.anisotropy = 8;
+            m.map.needsUpdate = true;
+          }
+          m.needsUpdate = true;
+        };
+        if (Array.isArray(o.material)) o.material.forEach(applyMat);
+        else applyMat(o.material);
       }
     });
-  }, [fbx]);
+  }, [model]);
 
-  const scale = useMemo(() => {
-    const box = new Box3().setFromObject(fbx);
-    const size = new Vector3();
-    box.getSize(size);
-    const sx = size.x > 0 ? spec.size.w / size.x : 1;
-    const sy = size.y > 0 ? spec.size.h / size.y : 1;
-    const sz = size.z > 0 ? spec.size.d / size.z : 1;
-    return [sx, sy, sz] as [number, number, number];
-  }, [fbx, spec.size.w, spec.size.h, spec.size.d]);
+  const { scale, localOffset } = useMemo(() => {
+    const compute = () => {
+      if (FBX_BOUNDS_MODE === "heuristic") {
+        const { size, center } = getMainBounds(model, { ...override, respectVisibility: false });
+        return { size, center };
+      }
+      const box = new Box3().setFromObject(model);
+      const size = new Vector3();
+      const center = new Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+      return { size, center };
+    };
+    const { size, center } = compute();
+    const eps = 1e-6;
+    const minDim = Math.min(size.x, size.y, size.z);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const isPlanar = maxDim > eps && minDim / maxDim < 0.05;
+    let sx = size.x > eps ? spec.size.w / size.x : 1;
+    let sy = size.y > eps ? spec.size.h / size.y : 1;
+    let sz = size.z > eps ? spec.size.d / size.z : 1;
+    if (isPlanar) {
+      const specMax = Math.max(spec.size.w, spec.size.h, spec.size.d);
+      const s = maxDim > eps ? specMax / maxDim : 1;
+      sx = sy = sz = s;
+    }
+    const offset: [number, number, number] = [-center.x * sx, -center.y * sy, -center.z * sz];
+    return { scale: [sx, sy, sz] as [number, number, number], localOffset: offset };
+  }, [model, spec.size.w, spec.size.h, spec.size.d, override]);
 
   const worldPosition = useMemo(() => {
     const center = getWorldCenter({ position, rotation }, spec);
@@ -40,11 +81,20 @@ const FbxItem = ({ instance }: { instance: PlacedInstance }) => {
 
   const euler = useMemo(() => toEulerRadians(rotation), [rotation]);
 
+  const hasMeshes = hasRenderableMeshes(model, true);
   return (
     <group position={worldPosition} rotation={euler}>
-      <Center>
-        <primitive object={fbx} scale={scale} />
-      </Center>
+      {hasMeshes ? (
+        <group position={localOffset} scale={scale}>
+          <primitive object={model} />
+        </group>
+      ) : (
+        // Fallback safety: render primitive if nothing visible
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[spec.size.w, spec.size.h, spec.size.d]} />
+          <meshStandardMaterial color={spec.fragile ? "#ffb49d" : "#9dc5ff"} />
+        </mesh>
+      )}
     </group>
   );
 };
@@ -128,8 +178,13 @@ const ItemMesh = ({ instance }: { instance: PlacedInstance }) => {
     (event: ThreeEvent<PointerEvent>) => {
       if (!ghost) return;
       event.stopPropagation();
-      const point = event.point;
-      setGhostPosition({ x: point.x, y: ghost.position.y, z: point.z });
+      const { ray } = event;
+      const denom = ray.direction.y;
+      if (Math.abs(denom) < 1e-6) return;
+      const t = (ghost.position.y - ray.origin.y) / denom;
+      const x = ray.origin.x + ray.direction.x * t;
+      const z = ray.origin.z + ray.direction.z * t;
+      setGhostPosition({ x, y: ghost.position.y, z });
     },
     [ghost, setGhostPosition],
   );
@@ -181,12 +236,13 @@ const PlacementPlane = () => {
     (event: ThreeEvent<PointerEvent>) => {
       if (!ghost) return;
       event.stopPropagation();
-      const point = event.point;
-      setGhostPosition({
-        x: point.x,
-        y: ghost.position.y,
-        z: point.z,
-      });
+      const { ray } = event;
+      const denom = ray.direction.y;
+      if (Math.abs(denom) < 1e-6) return;
+      const t = (ghost.position.y - ray.origin.y) / denom;
+      const x = ray.origin.x + ray.direction.x * t;
+      const z = ray.origin.z + ray.direction.z * t;
+      setGhostPosition({ x, y: ghost.position.y, z });
     },
     [ghost, setGhostPosition],
   );
@@ -234,7 +290,12 @@ const CanvasStage = () => {
 
   return (
     <div className="canvas-wrapper">
-      <Canvas shadows camera={{ position: [16, 14, 16], fov: 45 }} dpr={[1, 1.5]}>
+      <Canvas
+        shadows
+        camera={{ position: [16, 14, 16], fov: 45 }}
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true }}
+      >
         <color attach="background" args={["#f3f5f8"]} />
         <ambientLight intensity={0.5} />
         <directionalLight
@@ -243,6 +304,7 @@ const CanvasStage = () => {
           position={[10, 12, 8]}
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
+          shadow-normalBias={0.02}
         />
         <Suspense fallback={null}>
           <PlacementPlane />

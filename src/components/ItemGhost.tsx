@@ -31,11 +31,20 @@ const ItemGhost = () => {
           transparent
           opacity={0.25}
           roughness={0.6}
+          polygonOffset
+          polygonOffsetFactor={-1}
+          polygonOffsetUnits={-1}
         />
       </mesh>
       <mesh position={position} rotation={euler}>
         <boxGeometry args={[w, h, d]} />
-        <meshBasicMaterial color="#0f172a" wireframe transparent opacity={0.4} />
+        <meshBasicMaterial
+          color="#0f172a"
+          wireframe
+          transparent
+          opacity={0.4}
+          depthTest={false}
+        />
       </mesh>
     </group>
   );

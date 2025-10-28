@@ -1,14 +1,9 @@
 import { Edges } from "@react-three/drei";
 import { useMemo } from "react";
-
-const DIMENSIONS = {
-  width: 12,
-  depth: 9,
-  height: 6,
-};
+import { BASKET_DIMENSIONS } from "../store/useGameStore";
 
 const BasketGrid = () => {
-  const { width, depth, height } = DIMENSIONS;
+  const { width, depth, height } = BASKET_DIMENSIONS;
 
   const gridArgs = useMemo<[number, number, string | number, string | number]>(
     () => [width, width, "#cbd5f5", "#e2e8f0"],

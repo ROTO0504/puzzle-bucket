@@ -1,10 +1,15 @@
 import { Canvas } from "@react-three/fiber";
-import { Center, Environment, useFBX } from "@react-three/drei";
+import { Environment } from "@react-three/drei";
 import { useMemo, useEffect, Suspense, Component, type ReactNode } from "react";
 import { useGameStore } from "../store/useGameStore";
 import type { ItemSpec } from "../types";
+// Box3, Vector3 handled via bounds util
+import { ENABLE_FBX_MODELS, FBX_BOUNDS_MODE } from "../config";
+import { resolveModelUrl } from "../assets/models";
+import { useFbxWithResources } from "../utils/useFbxWithResources";
+import { getMainBounds, hideBackgroundMeshes, hasRenderableMeshes } from "../utils/fbxBounds";
 import { Box3, Vector3 } from "three";
-import { ENABLE_FBX_MODELS } from "../config";
+import { getModelOverride } from "../assets/modelOverrides";
 
 const PrimitivePreviewMesh = ({ spec }: { spec: ItemSpec }) => {
   const euler: [number, number, number] = [Math.PI / 8, Math.PI / 6, 0];
@@ -52,33 +57,64 @@ const PrimitivePreviewMesh = ({ spec }: { spec: ItemSpec }) => {
 
 const FbxPreviewMesh = ({ spec }: { spec: ItemSpec }) => {
   const euler: [number, number, number] = [Math.PI / 8, Math.PI / 6, 0];
-  const url = useMemo(() => (spec.model ? (spec.model.startsWith("/") ? spec.model : `/${spec.model}`) : null), [
-    spec.model,
-  ]);
-  if (!url) return null;
-  const fbx = useFBX(url);
+  const url = useMemo(() => resolveModelUrl(spec.model)!, [spec.model]);
+  const fbx = useFbxWithResources(url, "/assets/3d/");
+  const model = useMemo(() => fbx.clone(true), [fbx]);
+  const override = useMemo(() => getModelOverride(spec.id) ?? getModelOverride(spec.model ?? undefined), [spec.id, spec.model]);
+  useEffect(() => {
+    if (FBX_BOUNDS_MODE === "heuristic") hideBackgroundMeshes(model, override);
+  }, [model]);
   useEffect(() => {
     fbx.traverse((o: any) => {
       if (o.isMesh) {
         o.castShadow = true;
         o.receiveShadow = true;
+        o.frustumCulled = false;
+        const applyMat = (m: any) => {
+          if (!m) return;
+          m.side = 2; // DoubleSide
+          if (typeof m.opacity === "number" && m.opacity < 1) m.transparent = true;
+          if (m.map) {
+            m.map.anisotropy = 8;
+            m.map.needsUpdate = true;
+          }
+          m.needsUpdate = true;
+        };
+        if (Array.isArray(o.material)) o.material.forEach(applyMat);
+        else applyMat(o.material);
       }
     });
   }, [fbx]);
-  const scale = useMemo(() => {
-    const box = new Box3().setFromObject(fbx);
+  const { size, center } = useMemo(() => {
+    if (FBX_BOUNDS_MODE === "heuristic") return getMainBounds(model, { ...override, respectVisibility: false });
+    const box = new Box3().setFromObject(model);
     const size = new Vector3();
+    const center = new Vector3();
     box.getSize(size);
+    box.getCenter(center);
+    return { size, center };
+  }, [model, override]);
+  const scale = useMemo(() => {
     const sx = size.x > 0 ? spec.size.w / size.x : 1;
     const sy = size.y > 0 ? spec.size.h / size.y : 1;
     const sz = size.z > 0 ? spec.size.d / size.z : 1;
     return [sx, sy, sz] as [number, number, number];
-  }, [fbx, spec.size.w, spec.size.h, spec.size.d]);
+  }, [size.x, size.y, size.z, spec.size.w, spec.size.h, spec.size.d]);
+  const localOffset: [number, number, number] = [
+    -center.x * scale[0],
+    -center.y * scale[1],
+    -center.z * scale[2],
+  ];
+  const hasMeshes = hasRenderableMeshes(model, true);
   return (
     <group rotation={euler}>
-      <Center>
-        <primitive object={fbx} scale={scale} />
-      </Center>
+      {hasMeshes ? (
+        <group position={localOffset} scale={scale}>
+          <primitive object={model} />
+        </group>
+      ) : (
+        <PrimitivePreviewMesh spec={spec} />
+      )}
     </group>
   );
 };
@@ -100,10 +136,17 @@ class LocalErrorBoundary extends Component<{ fallback: ReactNode; children: Reac
 
 const ItemPreview = ({ spec }: { spec: ItemSpec }) => {
   const diag = Math.sqrt(spec.size.w ** 2 + spec.size.h ** 2 + spec.size.d ** 2) || 1;
-  const dist = diag * 1.8;
+  // Keep a comfortable distance so the model fits well.
+  const dist = Math.max(diag * 2.6, 6);
   return (
     <div className="current-item__preview">
-      <Canvas shadows camera={{ position: [dist, dist * 0.7, dist], fov: 40 }} dpr={[1, 1.5]} frameloop="demand">
+      <Canvas
+        shadows
+        camera={{ position: [dist, dist * 0.7, dist], fov: 35 }}
+        dpr={[1, 1.5]}
+        frameloop="demand"
+        gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true }}
+      >
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 8, 5]} intensity={0.9} castShadow />
         <LocalErrorBoundary fallback={<PrimitivePreviewMesh spec={spec} />}>
