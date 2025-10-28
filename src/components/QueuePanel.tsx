@@ -4,11 +4,13 @@ import type { ItemSpec } from "../types";
 import { Canvas } from "@react-three/fiber";
 // no Center used here
 // Box3, Vector3 handled via bounds util
-import { ENABLE_FBX_MODELS, ENABLE_QUEUE_ROW_PREVIEWS, FBX_BOUNDS_MODE } from "../config";
+import { ENABLE_FBX_MODELS, ENABLE_QUEUE_ROW_PREVIEWS, FBX_BOUNDS_MODE, ENABLE_LOG_DEPTH } from "../config";
 import { resolveModelUrl } from "../assets/models";
 import { useFbxWithResources } from "../utils/useFbxWithResources";
 import { getMainBounds, hideBackgroundMeshes, hasRenderableMeshes } from "../utils/fbxBounds";
 import { Box3, Vector3 } from "three";
+import { useThree } from "@react-three/fiber";
+import { tuneMaterials } from "../utils/materialTuning";
 import { getModelOverride } from "../assets/modelOverrides";
 import { useInViewport } from "../hooks/useInViewport";
 
@@ -58,9 +60,11 @@ const FbxPreviewMesh = ({ spec }: { spec: ItemSpec }) => {
   const fbx = useFbxWithResources(url, "/assets/3d/");
   const model = useMemo(() => fbx.clone(true), [fbx]);
   const override = useMemo(() => getModelOverride(spec.id) ?? getModelOverride(spec.model ?? undefined), [spec.id, spec.model]);
+  const { gl } = useThree();
   useEffect(() => {
     if (FBX_BOUNDS_MODE === "heuristic") hideBackgroundMeshes(model, override);
-  }, [model]);
+    tuneMaterials(model, gl as any);
+  }, [model, gl]);
   useEffect(() => {
     fbx.traverse((o: any) => {
       if (o.isMesh) {
@@ -144,9 +148,9 @@ const RowPreview = ({ spec }: { spec: ItemSpec }) => {
       {inView ? (
         <Canvas
           camera={{ position: [dist, dist * 0.7, dist], fov: 35 }}
-          dpr={[1, 1]}
+          dpr={[1, 1.5]}
           frameloop="demand"
-          gl={{ antialias: false, powerPreference: "low-power", logarithmicDepthBuffer: true }}
+          gl={{ antialias: true, powerPreference: "low-power", logarithmicDepthBuffer: ENABLE_LOG_DEPTH }}
         >
           <ambientLight intensity={0.6} />
           <directionalLight position={[5, 8, 5]} intensity={0.9} />
@@ -222,7 +226,7 @@ const QueuePanel = () => {
               </div>
             </div>
             <div className="queue__preview">
-              <Canvas camera={{ position: [nextDist, nextDist * 0.7, nextDist], fov: 35 }} dpr={[1, 1]} frameloop="demand" gl={{ antialias: false, powerPreference: "low-power", logarithmicDepthBuffer: true }}>
+              <Canvas camera={{ position: [nextDist, nextDist * 0.7, nextDist], fov: 35 }} dpr={[1, 1.5]} frameloop="demand" gl={{ antialias: true, powerPreference: "low-power", logarithmicDepthBuffer: ENABLE_LOG_DEPTH }}>
                 <ambientLight intensity={0.6} />
                 <directionalLight position={[5, 8, 5]} intensity={0.9} />
                 <LocalErrorBoundary fallback={<PrimitivePreviewMesh spec={nextSpec} />}>

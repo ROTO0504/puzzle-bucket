@@ -7,12 +7,14 @@ import { useGameStore, BASKET_DIMENSIONS } from "../store/useGameStore";
 import type { PlacedInstance } from "../store/useGameStore";
 import { getWorldCenter, toEulerRadians } from "../logic/placement/orientation";
 // Box3, Vector3 no longer used here after bounds util
-import { ENABLE_FBX_MODELS, FBX_BOUNDS_MODE } from "../config";
+import { ENABLE_FBX_MODELS, FBX_BOUNDS_MODE, ENABLE_LOG_DEPTH } from "../config";
 import { resolveModelUrl } from "../assets/models";
 import { useFbxWithResources } from "../utils/useFbxWithResources";
 import { getMainBounds, hideBackgroundMeshes, hasRenderableMeshes } from "../utils/fbxBounds";
 import { Box3, Vector3 } from "three";
 import { getModelOverride } from "../assets/modelOverrides";
+import { useThree } from "@react-three/fiber";
+import { tuneMaterials } from "../utils/materialTuning";
 
 const FbxItem = ({ instance }: { instance: PlacedInstance }) => {
   const { spec, position, rotation } = instance;
@@ -20,6 +22,7 @@ const FbxItem = ({ instance }: { instance: PlacedInstance }) => {
   const fbx = useFbxWithResources(url, "/assets/3d/");
   const model = useMemo(() => fbx.clone(true), [fbx]);
   const override = useMemo(() => getModelOverride(spec.id) ?? getModelOverride(spec.model ?? undefined), [spec.id, spec.model]);
+  const { gl } = useThree();
 
   useEffect(() => {
     if (FBX_BOUNDS_MODE === "heuristic") hideBackgroundMeshes(model, override);
@@ -30,19 +33,17 @@ const FbxItem = ({ instance }: { instance: PlacedInstance }) => {
         o.frustumCulled = false;
         const applyMat = (m: any) => {
           if (!m) return;
-          m.side = 2; // DoubleSide
+          m.side = 0; // FrontSide: better for shading, reduces artifacts
           if (typeof m.opacity === "number" && m.opacity < 1) m.transparent = true;
-          if (m.map) {
-            m.map.anisotropy = 8;
-            m.map.needsUpdate = true;
-          }
           m.needsUpdate = true;
         };
         if (Array.isArray(o.material)) o.material.forEach(applyMat);
         else applyMat(o.material);
       }
     });
-  }, [model]);
+    // Improve texture filtering and color space
+    tuneMaterials(model, gl as any);
+  }, [model, gl]);
 
   const { scale, localOffset } = useMemo(() => {
     const compute = () => {
@@ -293,8 +294,8 @@ const CanvasStage = () => {
       <Canvas
         shadows
         camera={{ position: [16, 14, 16], fov: 45 }}
-        dpr={[1, 1.5]}
-        gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true }}
+        dpr={[1, 2]}
+        gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: ENABLE_LOG_DEPTH }}
       >
         <color attach="background" args={["#f3f5f8"]} />
         <ambientLight intensity={0.5} />
@@ -304,7 +305,7 @@ const CanvasStage = () => {
           position={[10, 12, 8]}
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
-          shadow-normalBias={0.02}
+          shadow-normalBias={0.04}
         />
         <Suspense fallback={null}>
           <PlacementPlane />

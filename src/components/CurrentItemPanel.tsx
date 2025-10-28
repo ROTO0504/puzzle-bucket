@@ -4,11 +4,13 @@ import { useMemo, useEffect, Suspense, Component, type ReactNode } from "react";
 import { useGameStore } from "../store/useGameStore";
 import type { ItemSpec } from "../types";
 // Box3, Vector3 handled via bounds util
-import { ENABLE_FBX_MODELS, FBX_BOUNDS_MODE } from "../config";
+import { ENABLE_FBX_MODELS, FBX_BOUNDS_MODE, ENABLE_LOG_DEPTH } from "../config";
 import { resolveModelUrl } from "../assets/models";
 import { useFbxWithResources } from "../utils/useFbxWithResources";
 import { getMainBounds, hideBackgroundMeshes, hasRenderableMeshes } from "../utils/fbxBounds";
 import { Box3, Vector3 } from "three";
+import { useThree } from "@react-three/fiber";
+import { tuneMaterials } from "../utils/materialTuning";
 import { getModelOverride } from "../assets/modelOverrides";
 
 const PrimitivePreviewMesh = ({ spec }: { spec: ItemSpec }) => {
@@ -61,30 +63,28 @@ const FbxPreviewMesh = ({ spec }: { spec: ItemSpec }) => {
   const fbx = useFbxWithResources(url, "/assets/3d/");
   const model = useMemo(() => fbx.clone(true), [fbx]);
   const override = useMemo(() => getModelOverride(spec.id) ?? getModelOverride(spec.model ?? undefined), [spec.id, spec.model]);
+  const { gl } = useThree();
   useEffect(() => {
     if (FBX_BOUNDS_MODE === "heuristic") hideBackgroundMeshes(model, override);
-  }, [model]);
+    tuneMaterials(model, gl as any);
+  }, [model, gl]);
   useEffect(() => {
-    fbx.traverse((o: any) => {
+    model.traverse((o: any) => {
       if (o.isMesh) {
         o.castShadow = true;
         o.receiveShadow = true;
         o.frustumCulled = false;
         const applyMat = (m: any) => {
           if (!m) return;
-          m.side = 2; // DoubleSide
+          m.side = 0; // FrontSide
           if (typeof m.opacity === "number" && m.opacity < 1) m.transparent = true;
-          if (m.map) {
-            m.map.anisotropy = 8;
-            m.map.needsUpdate = true;
-          }
           m.needsUpdate = true;
         };
         if (Array.isArray(o.material)) o.material.forEach(applyMat);
         else applyMat(o.material);
       }
     });
-  }, [fbx]);
+  }, [model]);
   const { size, center } = useMemo(() => {
     if (FBX_BOUNDS_MODE === "heuristic") return getMainBounds(model, { ...override, respectVisibility: false });
     const box = new Box3().setFromObject(model);
@@ -143,9 +143,9 @@ const ItemPreview = ({ spec }: { spec: ItemSpec }) => {
       <Canvas
         shadows
         camera={{ position: [dist, dist * 0.7, dist], fov: 35 }}
-        dpr={[1, 1.5]}
+        dpr={[1, 2]}
         frameloop="demand"
-        gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: true }}
+        gl={{ antialias: true, powerPreference: "high-performance", logarithmicDepthBuffer: ENABLE_LOG_DEPTH }}
       >
         <ambientLight intensity={0.6} />
         <directionalLight position={[5, 8, 5]} intensity={0.9} castShadow />
