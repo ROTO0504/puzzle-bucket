@@ -1,0 +1,241 @@
+/* ==================================================
+   StartScreen.css - help パネル表示時にカード下に余白を確保する版
+   - .card.receipt-style.help-open で下部 padding を追加
+   - .help-panel--fixed はビューポート基準で表示（オーバーレイ）
+   ================================================== */
+
+/* === スタート画面全体 === */
+.start-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f9fafb;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === メインカード === */
+.card.receipt-style {
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  padding: 32px;
+  width: 420px;
+  max-width: calc(100% - 40px);
+  text-align: center;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  transition: padding-bottom 0.18s ease;
+}
+
+/* help が開いているときは下に余白（パディング）を確保して、固定表示のパネルと重ならないようにする */
+.card.receipt-style.help-open {
+  /* 下に確保する高さ（toggle + card の高さ分）。必要に応じて値を調整してください */
+  padding-bottom: 340px;
+}
+
+/* === タイトル / 説明 === */
+.overlay__title {
+  font-size: 30px;
+  font-weight: 800;
+  color: #333;
+  margin: 0 0 10px 0;
+  line-height: 1.1;
+}
+.overlay__desc {
+  font-size: 15px;
+  color: #555;
+  margin: 0 0 20px 0;
+}
+
+/* === ボタン群 === */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* === ボタン共通 === */
+.btn {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  background-color: #e6e6e6;
+  color: #222;
+  transition: background-color 0.18s ease, transform 0.06s ease;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04) inset;
+}
+.btn:active { transform: translateY(1px); }
+.btn:hover { background-color: #dcdcdc; }
+
+/* 主ボタン */
+.btn--primary {
+  background-color: #4DA3FF;
+  color: #fff;
+}
+.btn--primary:hover { background-color: #338cff; }
+
+/* === 操作説明周りの親ブロック（start 内での配置コンテナ） === */
+.help-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 16px; /* スタート画面内のボタン群との間隔 */
+  box-sizing: border-box;
+}
+
+/* === help-panel の基本（位置指定はしない） === */
+.help-panel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+/* === スタート画面用：ビューポート基準で中央ちょい下に固定表示 === */
+.help-panel--fixed {
+  position: fixed;
+  left: 50%;
+  top: 50vh;
+  transform: translateX(-50%);
+  width: 300px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 9999;
+  gap: 8px;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* スタート画面以外（ゲーム中）の右下固定表示 */
+.help-panel--inline {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 100;
+  width: auto;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+/* === トグルボタン === */
+.help-panel__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background-color: #4DA3FF;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.help-panel__toggle:hover { background-color: #3390FF; }
+.help-panel__toggle:active { transform: translateY(1px); }
+
+/* === 操作説明カード本体 === */
+.help-panel__card {
+  background-color: #222;
+  color: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 300px;
+  padding: 14px;
+  text-align: left;
+  font-family: "Menlo", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* リスト行 */
+.help-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.help-panel__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.help-panel__label { font-weight: 700; font-size: 13px; color: #fff; }
+.help-panel__keys { color: rgba(255,255,255,0.85); font-size: 13px; opacity: 0.9; }
+
+/* ===========================
+   レスポンシブ微調整
+   - 縦長の小さい画面では top を下げ、幅は vw 基準へ
+   - help-open の padding-bottom も調整
+   =========================== */
+@media (max-width: 480px) {
+  .card.receipt-style { width: calc(100% - 32px); padding: 20px; }
+  .help-panel--fixed {
+    top: 62vh;
+    width: 90vw;
+  }
+  .help-panel__card { padding: 12px; font-size: 12px; }
+  .help-panel__toggle { padding: 8px; font-size: 14px; }
+
+  /* 狭い画面では panel が大きくなるので余白を増やす */
+  .card.receipt-style.help-open {
+    padding-bottom: 420px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .help-panel--fixed { top: 52vh; } /* 広いときは少しだけ上げる */
+  .card.receipt-style.help-open {
+    padding-bottom: 300px;
+  }
+}
+
+/* スコア表示を黒にして見やすくする */
+.score__total {
+  color: #000;           /* 全体の合計を黒に */
+  font-weight: 800;
+  font-size: 20px;       /* 必要ならサイズも調整 */
+  margin-bottom: 8px;
+}
+
+.score__rows {
+  margin-bottom: 12px;
+}
+
+/* 行全体を黒にする（ラベルも値も黒にする場合） */
+.score__row {
+  color: #000;
+  font-size: 14px;
+}
+
+/* もしラベルは薄めに、値だけを黒にしたければ下記を使う */
+.score__row span:first-child { color: rgba(0,0,0,0.6); } /* ラベル */
+.score__row span:last-child  { color: #000; font-weight: 700; } /* 値 */
+
+
+/* ===========================
+   メンテナンスメモ:
+   - .card.receipt-style.help-open の padding-bottom の値は、help-panel の実寸に合わせて微調整してください。
+   - もし help-panel の高さが将来変わるなら、JS 側で実際の高さを算出して style を直接当てる実装にすると確実です。
+   =========================== */
